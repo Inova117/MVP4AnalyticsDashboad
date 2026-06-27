@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { XIcon, FileDownIcon, Loader2Icon, CheckIcon } from 'lucide-react'
+import { XIcon, FileDownIcon, Loader2Icon } from 'lucide-react'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 import { format } from 'date-fns'
@@ -23,7 +23,7 @@ export function ExportPdfModal({ dashboardName, onClose }: ExportPdfModalProps) 
 
         try {
             // 1. Get all widget elements
-            const widgetElements = document.querySelectorAll('.glass-card')
+            const widgetElements = document.querySelectorAll('[data-export-card]')
             if (!widgetElements.length) {
                 throw new Error('No widgets found to export')
             }
@@ -56,8 +56,6 @@ export function ExportPdfModal({ dashboardName, onClose }: ExportPdfModalProps) 
             }
 
             // 4. Capture and Add Widgets
-            let processed = 0
-
             // Grid layout configuration
             const cols = orientation === 'landscape' ? 3 : 2
             const spacing = 5
@@ -71,10 +69,10 @@ export function ExportPdfModal({ dashboardName, onClose }: ExportPdfModalProps) 
 
                 // Capture high-res image
                 const canvas = await html2canvas(element, {
-                    scale: 2, // Retína quality
+                    scale: 2, // Retina quality
                     useCORS: true,
                     logging: false,
-                    backgroundColor: null, // Transparent bg if possible, or force white
+                    backgroundColor: '#ffffff', // PDF pages are white
                 })
 
                 const imgData = canvas.toDataURL('image/png')
@@ -108,8 +106,6 @@ export function ExportPdfModal({ dashboardName, onClose }: ExportPdfModalProps) 
                     currentY += rowMaxHeight + spacing
                     rowMaxHeight = 0
                 }
-
-                processed++
             }
 
             setProgress('Finalizing PDF...')
@@ -128,22 +124,21 @@ export function ExportPdfModal({ dashboardName, onClose }: ExportPdfModalProps) 
 
     return (
         <>
-            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 transition-opacity" onClick={onClose} />
-            <div className="fixed inset-0 flex items-center justify-center z-50 p-4 animate-fade-in">
-                <div className="glass bg-white/95 dark:bg-slate-900/95 rounded-2xl shadow-2xl max-w-md w-full border border-white/20">
-                    <div className="flex items-center justify-between px-6 py-5 border-b border-border/50">
+            <div className="fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm animate-fade-in" onClick={onClose} />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card shadow-elevated animate-slide-up">
+                    <div className="flex items-center justify-between border-b border-border px-6 py-5">
                         <div>
-                            <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/80">
-                                Export Dashboard
-                            </h2>
-                            <p className="text-sm text-muted-foreground mt-0.5">Generate a PDF report</p>
+                            <h2 className="text-lg font-bold text-foreground">Export Dashboard</h2>
+                            <p className="mt-0.5 text-sm text-muted-foreground">Generate a PDF report</p>
                         </div>
                         <button
                             onClick={onClose}
-                            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors text-muted-foreground hover:text-foreground"
+                            className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-ring"
                             disabled={loading}
+                            aria-label="Close"
                         >
-                            <XIcon className="w-5 h-5" />
+                            <XIcon className="h-5 w-5" />
                         </button>
                     </div>
 
@@ -200,24 +195,16 @@ export function ExportPdfModal({ dashboardName, onClose }: ExportPdfModalProps) 
                         )}
                     </div>
 
-                    <div className="flex items-center justify-end gap-3 px-6 py-5 border-t border-border/50 bg-muted/10">
-                        <button
-                            onClick={onClose}
-                            className="px-5 py-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-muted-foreground hover:text-foreground transition font-medium text-sm"
-                            disabled={loading}
-                        >
+                    <div className="flex items-center justify-end gap-3 border-t border-border px-6 py-4">
+                        <button onClick={onClose} className="btn-ghost" disabled={loading}>
                             Cancel
                         </button>
-                        <button
-                            onClick={handleExport}
-                            disabled={loading}
-                            className="flex items-center gap-2 px-6 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-500 hover:shadow-lg hover:shadow-primary-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 font-medium text-sm"
-                        >
+                        <button onClick={handleExport} disabled={loading} className="btn-primary">
                             {loading ? (
-                                'Exporting...'
+                                'Exporting…'
                             ) : (
                                 <>
-                                    <FileDownIcon className="w-4 h-4" />
+                                    <FileDownIcon className="h-4 w-4" />
                                     Download PDF
                                 </>
                             )}

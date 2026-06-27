@@ -1,77 +1,71 @@
-// Date Range Context - Global state for date filtering
+// Date Range Context — global state for date filtering across all widgets.
 'use client'
 
-import { createContext, useContext, useState, type ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
 import { subDays, startOfMonth, startOfDay, endOfDay } from 'date-fns'
-
-interface DateRangeContextType {
-    startDate: Date
-    endDate: Date
-    setStartDate: (date: Date) => void
-    setEndDate: (date: Date) => void
-    setPreset: (preset: DatePreset) => void
-    compareMode: boolean
-    setCompareMode: (enabled: boolean) => void
-}
 
 export type DatePreset =
     | 'today'
     | 'yesterday'
     | 'last_7_days'
     | 'last_30_days'
+    | 'last_90_days'
     | 'this_month'
     | 'custom'
 
+interface DateRangeContextType {
+    startDate: Date
+    endDate: Date
+    preset: DatePreset
+    setPreset: (preset: DatePreset) => void
+    setCustomRange: (start: Date, end: Date) => void
+}
+
 const DateRangeContext = createContext<DateRangeContextType | null>(null)
 
-export function DateRangeProvider({ children }: { children: ReactNode }) {
-    const [startDate, setStartDate] = useState(startOfMonth(new Date()))
-    const [endDate, setEndDate] = useState(endOfDay(new Date()))
-    const [compareMode, setCompareMode] = useState(false)
-
-    const setPreset = (preset: DatePreset) => {
-        const end = endOfDay(new Date())
-        let start = startOfDay(new Date())
-
-        switch (preset) {
-            case 'today':
-                start = startOfDay(new Date())
-                break
-            case 'yesterday':
-                start = startOfDay(subDays(new Date(), 1))
-                setEndDate(endOfDay(subDays(new Date(), 1)))
-                setStartDate(start)
-                return
-            case 'last_7_days':
-                start = startOfDay(subDays(end, 6))
-                break
-            case 'last_30_days':
-                start = startOfDay(subDays(end, 29))
-                break
-            case 'this_month':
-                start = startOfMonth(end)
-                break
-            case 'custom':
-                // Don't change dates for custom
-                return
-        }
-
-        setStartDate(start)
-        setEndDate(end)
+function rangeForPreset(preset: DatePreset): { start: Date; end: Date } | null {
+    const end = endOfDay(new Date())
+    switch (preset) {
+        case 'today':
+            return { start: startOfDay(new Date()), end }
+        case 'yesterday':
+            return { start: startOfDay(subDays(new Date(), 1)), end: endOfDay(subDays(new Date(), 1)) }
+        case 'last_7_days':
+            return { start: startOfDay(subDays(end, 6)), end }
+        case 'last_30_days':
+            return { start: startOfDay(subDays(end, 29)), end }
+        case 'last_90_days':
+            return { start: startOfDay(subDays(end, 89)), end }
+        case 'this_month':
+            return { start: startOfMonth(end), end }
+        case 'custom':
+            return null
     }
+}
+
+export function DateRangeProvider({ children }: { children: ReactNode }) {
+    const initial = rangeForPreset('last_30_days')!
+    const [startDate, setStartDate] = useState(initial.start)
+    const [endDate, setEndDate] = useState(initial.end)
+    const [preset, setPresetState] = useState<DatePreset>('last_30_days')
+
+    const setPreset = useCallback((next: DatePreset) => {
+        const range = rangeForPreset(next)
+        setPresetState(next)
+        if (range) {
+            setStartDate(range.start)
+            setEndDate(range.end)
+        }
+    }, [])
+
+    const setCustomRange = useCallback((start: Date, end: Date) => {
+        setPresetState('custom')
+        setStartDate(startOfDay(start))
+        setEndDate(endOfDay(end))
+    }, [])
 
     return (
-        <DateRangeContext.Provider
-            value={{
-                startDate,
-                endDate,
-                setStartDate,
-                setEndDate,
-                setPreset,
-                compareMode,
-                setCompareMode,
-            }}
-        >
+        <DateRangeContext.Provider value={{ startDate, endDate, preset, setPreset, setCustomRange }}>
             {children}
         </DateRangeContext.Provider>
     )

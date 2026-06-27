@@ -2,7 +2,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CheckCircleIcon, XCircleIcon, ClockIcon, DatabaseIcon, CloudIcon } from 'lucide-react'
+import { CheckCircleIcon, ClockIcon, CloudIcon } from 'lucide-react'
 
 export function DataConnectors() {
     const [selectedConnector, setSelectedConnector] = useState<string | null>(null)

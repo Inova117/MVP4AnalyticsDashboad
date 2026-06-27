@@ -2,13 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   Design Tokens — single source of truth for color & elevation
+   Brand: Indigo / Violet. One coherent system, light + dark.
+   ============================================================ */
 @layer base {
   :root {
-    /* Premium Light Mode */
-    --background: 210 40% 98%;
-    /* Slightly cool white */
+    --background: 220 33% 98%;
+    /* cool near-white */
     --foreground: 222 47% 11%;
-    /* Deep navy */
+    /* slate-900 */
 
     --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
@@ -17,59 +20,80 @@
     --popover-foreground: 222 47% 11%;
 
     --primary: 243 75% 59%;
-    /* Indigo-600 */
-    --primary-foreground: 210 40% 98%;
+    /* indigo-600 */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
+    --accent: 258 90% 66%;
+    /* violet-500 */
+    --accent-foreground: 0 0% 100%;
+
+    --secondary: 220 14% 96%;
     --secondary-foreground: 222 47% 11%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222 47% 11%;
+    --success: 160 84% 39%;
+    /* emerald-600 */
+    --warning: 38 92% 50%;
+    /* amber-500 */
+    --danger: 350 89% 60%;
+    /* rose-500 */
+    --info: 199 89% 48%;
+    /* sky-500 */
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 350 89% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
+    --border: 220 16% 90%;
+    --input: 220 16% 90%;
     --ring: 243 75% 59%;
 
     --radius: 0.75rem;
+
+    /* Elevation surfaces (used for stacked panels) */
+    --surface-1: 0 0% 100%;
+    --surface-2: 220 33% 98%;
   }
 
   .dark {
-    /* Premium Dark Mode (Deep Zinc/Slate) */
-    --background: 222 47% 11%;
-    /* Very dark navy/slate */
+    --background: 222 47% 7%;
+    /* deep navy-slate */
     --foreground: 210 40% 98%;
 
-    --card: 217 33% 17%;
-    /* Lighter than bg */
+    --card: 222 41% 11%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 222 47% 11%;
+    --popover: 222 41% 11%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 243 75% 59%;
-    --primary-foreground: 222 47% 11%;
+    --primary: 239 84% 67%;
+    /* brighter indigo for contrast on dark */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 217 33% 17%;
+    --accent: 258 90% 70%;
+    --accent-foreground: 0 0% 100%;
+
+    --secondary: 217 33% 16%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 217 33% 16%;
+    --muted-foreground: 217 16% 62%;
 
-    --accent: 217 33% 17%;
-    --accent-foreground: 210 40% 98%;
+    --success: 158 64% 52%;
+    --warning: 38 92% 55%;
+    --danger: 350 95% 66%;
+    --info: 199 89% 56%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 350 95% 66%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217 33% 20%;
-    --input: 217 33% 17%;
-    --ring: 243 75% 59%;
+    --border: 217 33% 19%;
+    --input: 217 33% 19%;
+    --ring: 239 84% 67%;
+
+    --surface-1: 222 41% 11%;
+    --surface-2: 222 47% 9%;
   }
 }
 
@@ -78,27 +102,128 @@
     @apply border-border;
   }
 
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
-    @apply bg-background text-foreground font-sans antialiased selection:bg-primary/20 selection:text-primary;
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Numeric data should always be tabular for clean alignment */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::selection {
+    @apply bg-primary/20 text-primary;
   }
 }
 
-/* Glassmorphism Utilities */
-@layer utilities {
-  .glass {
-    @apply bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border border-white/20 dark:border-white/5;
+/* ============================================================
+   Component utilities
+   ============================================================ */
+@layer components {
+
+  /* Premium solid card — the default surface for the product */
+  .card-surface {
+    @apply bg-card text-card-foreground border border-border/70 rounded-2xl shadow-card;
   }
 
-  .glass-card {
-    @apply bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50 shadow-sm hover:shadow-md transition-all duration-300;
+  /* Glass treatment reserved for the sticky app header */
+  .glass {
+    @apply bg-background/80 backdrop-blur-xl backdrop-saturate-150;
   }
 
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-indigo-600 dark:from-primary-400 dark:to-indigo-400;
+    @apply bg-clip-text text-transparent bg-gradient-to-br from-primary via-primary to-accent;
+  }
+
+  /* Accessible focus ring for interactive elements */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  /* Form control */
+  .input {
+    @apply w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground transition-all placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:shadow-glow focus-ring disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-ring;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-ring;
   }
 }
 
-/* Mermaid diagram styling */
+/* ============================================================
+   Custom scrollbar
+   ============================================================ */
+@layer utilities {
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border));
+    border-radius: 9999px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.5);
+  }
+}
+
+/* ============================================================
+   Skeleton shimmer (professional loading states)
+   ============================================================ */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: hsl(var(--muted));
+  border-radius: var(--radius);
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg,
+      transparent,
+      hsl(var(--foreground) / 0.06),
+      transparent);
+  animation: shimmer 1.6s infinite;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* ============================================================
+   Mermaid diagram styling (backend page)
+   ============================================================ */
 .mermaid {
   @apply flex justify-center items-center min-h-[200px];
 }
@@ -107,7 +232,9 @@
   @apply max-w-full h-auto;
 }
 
-/* AI Insights Panel Animation */
+/* ============================================================
+   Animations
+   ============================================================ */
 @keyframes slideInRight {
   from {
     transform: translateX(100%);
@@ -120,22 +247,32 @@
   }
 }
 
-@keyframes slideOutRight {
+@keyframes fadeInUp {
   from {
-    transform: translateX(0);
-    opacity: 1;
+    opacity: 0;
+    transform: translateY(8px);
   }
 
   to {
-    transform: translateX(100%);
-    opacity: 0;
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
 .animate-slide-in-right {
-  animation: slideInRight 0.3s ease-out forwards;
+  animation: slideInRight 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-.animate-slide-out-right {
-  animation: slideOutRight 0.3s ease-in forwards;
+.animate-fade-in {
+  animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-slide-up {
+  animation: fadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Recharts: remove the default focus outline on active elements */
+.recharts-surface:focus,
+.recharts-wrapper:focus {
+  outline: none;
 }

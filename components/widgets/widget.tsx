@@ -1,8 +1,9 @@
-// Widget Component - Routes to specific widget type
+// Widget shell — frame + actions, routes to the specific visualization.
 'use client'
 
 import { KpiWidget } from './kpi-widget'
 import { LineChartWidget } from './line-chart-widget'
+import { AreaChartWidget } from './area-chart-widget'
 import { BarChartWidget } from './bar-chart-widget'
 import { PieChartWidget } from './pie-chart-widget'
 import { WidgetSettingsModal } from './widget-settings-modal'
@@ -13,11 +14,11 @@ import { useState } from 'react'
 interface WidgetProps {
     widget: WidgetType
     onDelete: () => void
+    onUpdate: () => void
     dragHandleProps?: Record<string, unknown>
 }
 
-export function Widget({ widget, onDelete, dragHandleProps }: WidgetProps) {
-    const [showActions, setShowActions] = useState(false)
+export function Widget({ widget, onDelete, onUpdate, dragHandleProps }: WidgetProps) {
     const [showSettings, setShowSettings] = useState(false)
 
     const renderWidget = () => {
@@ -26,14 +27,17 @@ export function Widget({ widget, onDelete, dragHandleProps }: WidgetProps) {
                 return <KpiWidget widget={widget} />
             case 'line':
                 return <LineChartWidget widget={widget} />
+            case 'area':
+                return <AreaChartWidget widget={widget} />
             case 'bar':
                 return <BarChartWidget widget={widget} />
             case 'pie':
+            case 'donut':
                 return <PieChartWidget widget={widget} />
             default:
                 return (
-                    <div className="flex items-center justify-center h-full text-muted-foreground">
-                        Unknown widget type: {widget.type}
+                    <div className="flex h-full items-center justify-center text-muted-foreground">
+                        Unknown widget type
                     </div>
                 )
         }
@@ -41,63 +45,57 @@ export function Widget({ widget, onDelete, dragHandleProps }: WidgetProps) {
 
     return (
         <div
-            className="glass-card h-full flex flex-col rounded-xl overflow-hidden group"
-            onMouseEnter={() => setShowActions(true)}
-            onMouseLeave={() => setShowActions(false)}
+            data-export-card
+            className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card shadow-card transition-shadow duration-300 hover:shadow-elevated"
         >
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border/50 bg-white/30 dark:bg-slate-900/30 backdrop-blur-md">
-                <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between gap-2 px-5 pt-4 pb-3">
+                <div className="flex min-w-0 items-center gap-2">
                     <button
                         {...dragHandleProps}
-                        className="cursor-grab active:cursor-grabbing text-muted-foreground/60 hover:text-primary-500 transition-colors"
-                        title="Drag to move"
+                        className="cursor-grab text-muted-foreground/40 transition-colors hover:text-primary active:cursor-grabbing focus-ring rounded"
+                        title="Drag to reorder"
+                        aria-label="Drag to reorder"
                     >
-                        <GripVerticalIcon className="w-4 h-4" />
+                        <GripVerticalIcon className="h-4 w-4" />
                     </button>
-                    <h3 className="font-semibold text-sm text-foreground/90 tracking-wide uppercase text-[11px]">{widget.title}</h3>
+                    <h3 className="truncate text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        {widget.title}
+                    </h3>
                 </div>
 
-                {/* Actions */}
-                <div
-                    className={`flex items-center gap-1 transition-all duration-300 ${showActions ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2'
-                        }`}
-                >
+                <div className="flex items-center gap-0.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
                     <button
-                        className="p-1.5 hover:bg-primary-50 dark:hover:bg-primary-950/30 text-muted-foreground hover:text-primary-600 rounded-md transition-colors"
+                        className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-ring"
                         onClick={() => setShowSettings(true)}
-                        title="Settings"
+                        title="Widget settings"
+                        aria-label="Widget settings"
                     >
-                        <SettingsIcon className="w-3.5 h-3.5" />
+                        <SettingsIcon className="h-3.5 w-3.5" />
                     </button>
                     <button
-                        className="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/30 text-muted-foreground hover:text-red-500 rounded-md transition-colors"
+                        className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-danger/10 hover:text-danger focus-ring"
                         onClick={() => {
-                            if (confirm('Delete this widget?')) {
-                                onDelete()
-                            }
+                            if (confirm(`Delete "${widget.title}"?`)) onDelete()
                         }}
-                        title="Delete Widget"
+                        title="Delete widget"
+                        aria-label="Delete widget"
                     >
-                        <Trash2Icon className="w-3.5 h-3.5" />
+                        <Trash2Icon className="h-3.5 w-3.5" />
                     </button>
                 </div>
             </div>
 
             {/* Content */}
-            <div className="p-6 flex-1 min-h-0 relative">
-                {renderWidget()}
-            </div>
+            <div className="relative min-h-0 flex-1 px-5 pb-5">{renderWidget()}</div>
 
-            {/* Settings Modal */}
             {showSettings && (
                 <WidgetSettingsModal
                     widget={widget}
                     onClose={() => setShowSettings(false)}
                     onSuccess={() => {
                         setShowSettings(false)
-                        // Force re-render by triggering parent update
-                        window.location.reload()
+                        onUpdate()
                     }}
                 />
             )}

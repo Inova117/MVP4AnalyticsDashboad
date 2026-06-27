@@ -1,97 +1,38 @@
-// Data Source Registry and Selector
-// Centralized access to all mock data sources
+// Active data-source state + registry.
+// The selected source is persisted in localStorage and broadcast via a custom
+// event so the whole app reacts in-place (no full page reload).
 
-import { googleAnalyticsData } from './sources/google-analytics'
-import { metaAdsData } from './sources/meta-ads'
-import { internalSaasData } from './sources/internal-saas'
-import { ecommerceData } from './sources/ecommerce'
+import {
+    SOURCE_LIST,
+    getSourceDef,
+    DEFAULT_SOURCE,
+    type DataSourceType,
+    type SourceDef,
+} from './catalog'
 
-export type DataSourceType =
-    | 'google-analytics'
-    | 'meta-ads'
-    | 'internal-saas'
-    | 'ecommerce'
+export type { DataSourceType, SourceDef }
 
-export interface DataSource {
-    id: DataSourceType
-    name: string
-    icon: string
-    description: string
-    category: 'marketing' | 'business' | 'ecommerce'
-    status: 'active' | 'demo'
-    data: any
+const STORAGE_KEY = 'activeDataSource'
+export const DATA_SOURCE_CHANGED_EVENT = 'dataSourceChanged'
+
+export function getAllDataSources(): SourceDef[] {
+    return SOURCE_LIST
 }
 
-export const dataSources: Record<DataSourceType, DataSource> = {
-    'google-analytics': {
-        id: 'google-analytics',
-        name: 'Google Analytics 4',
-        icon: '📊',
-        description: 'Web traffic, user behavior, and conversions',
-        category: 'marketing',
-        status: 'demo',
-        data: googleAnalyticsData,
-    },
-    'meta-ads': {
-        id: 'meta-ads',
-        name: 'Meta Business (FB/IG Ads)',
-        icon: '📱',
-        description: 'Social media advertising performance',
-        category: 'marketing',
-        status: 'demo',
-        data: metaAdsData,
-    },
-    'internal-saas': {
-        id: 'internal-saas',
-        name: 'Internal Database',
-        icon: '💾',
-        description: 'SaaS metrics, subscriptions, and engagement',
-        category: 'business',
-        status: 'active',
-        data: internalSaasData,
-    },
-    'ecommerce': {
-        id: 'ecommerce',
-        name: 'E-commerce Platform',
-        icon: '🛒',
-        description: 'Online store sales, products, and customers',
-        category: 'ecommerce',
-        status: 'demo',
-        data: ecommerceData,
-    },
+export function getDataSource(sourceId: DataSourceType): SourceDef {
+    return getSourceDef(sourceId)
 }
 
-/**
- * Get data from a specific source
- */
-export function getDataSource(sourceId: DataSourceType) {
-    return dataSources[sourceId]
-}
-
-/**
- * Get all available data sources
- */
-export function getAllDataSources() {
-    return Object.values(dataSources)
-}
-
-/**
- * Get active data source (from localStorage or default)
- */
 export function getActiveDataSource(): DataSourceType {
-    if (typeof window === 'undefined') return 'google-analytics'
-
-    const stored = localStorage.getItem('activeDataSource')
-    return (stored as DataSourceType) || 'google-analytics'
+    if (typeof window === 'undefined') return DEFAULT_SOURCE
+    const stored = localStorage.getItem(STORAGE_KEY) as DataSourceType | null
+    return stored && stored in { 'google-analytics': 1, 'meta-ads': 1, 'internal-saas': 1, 'ecommerce': 1 }
+        ? stored
+        : DEFAULT_SOURCE
 }
 
-/**
- * Set active data source
- */
 export function setActiveDataSource(sourceId: DataSourceType) {
     if (typeof window === 'undefined') return
-
-    localStorage.setItem('activeDataSource', sourceId)
-    // Trigger a custom event to notify components
-    window.dispatchEvent(new CustomEvent('dataSourceChanged', { detail: sourceId }))
+    localStorage.setItem(STORAGE_KEY, sourceId)
+    window.dispatchEvent(new CustomEvent(DATA_SOURCE_CHANGED_EVENT, { detail: sourceId }))
 }

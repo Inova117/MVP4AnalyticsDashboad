@@ -4,18 +4,20 @@ module.exports = {
     content: [
         './app/**/*.{ts,tsx}',
         './components/**/*.{ts,tsx}',
+        './lib/**/*.{ts,tsx}',
     ],
     theme: {
         extend: {
             colors: {
-                // Premium Design System colors (Indigo & Zinc) with Semantic Overrides
+                // Brand — Indigo. Mapped so `primary` (DEFAULT) tracks the theme token,
+                // while the numeric scale stays available for fixed accents.
                 primary: {
                     50: '#eef2ff',
                     100: '#e0e7ff',
                     200: '#c7d2fe',
                     300: '#a5b4fc',
                     400: '#818cf8',
-                    500: '#6366f1', // Main brand color (Indigo)
+                    500: '#6366f1',
                     600: '#4f46e5',
                     700: '#4338ca',
                     800: '#3730a3',
@@ -24,27 +26,25 @@ module.exports = {
                     DEFAULT: 'hsl(var(--primary))',
                     foreground: 'hsl(var(--primary-foreground))',
                 },
-                secondary: {
-                    50: '#fdf4ff',
-                    100: '#fae8ff',
-                    200: '#f5d0fe',
-                    300: '#f0abfc',
-                    400: '#e879f9',
-                    500: '#d946ef',
-                    600: '#c026d3',
-                    700: '#a21caf',
-                    800: '#86198f',
-                    900: '#701a75',
-                    DEFAULT: 'hsl(var(--secondary))',
-                    foreground: 'hsl(var(--secondary-foreground))',
+                // Accent — Violet (used sparingly for gradients / highlights)
+                accent: {
+                    50: '#f5f3ff',
+                    100: '#ede9fe',
+                    200: '#ddd6fe',
+                    300: '#c4b5fd',
+                    400: '#a78bfa',
+                    500: '#8b5cf6',
+                    600: '#7c3aed',
+                    700: '#6d28d9',
+                    DEFAULT: 'hsl(var(--accent))',
+                    foreground: 'hsl(var(--accent-foreground))',
                 },
-                // Neutral scales for sophisticated UI
-                slate: {
-                    850: '#1e293b', // Custom dark card bg
-                    900: '#0f172a',
-                    950: '#020617', // Custom dark body bg
-                },
-                // CSS variables for functional colors
+                // Semantic tokens (theme-aware)
+                success: 'hsl(var(--success))',
+                warning: 'hsl(var(--warning))',
+                danger: 'hsl(var(--danger))',
+                info: 'hsl(var(--info))',
+                // Functional surfaces
                 background: 'hsl(var(--background))',
                 foreground: 'hsl(var(--foreground))',
                 card: {
@@ -55,25 +55,40 @@ module.exports = {
                     DEFAULT: 'hsl(var(--popover))',
                     foreground: 'hsl(var(--popover-foreground))',
                 },
+                secondary: {
+                    DEFAULT: 'hsl(var(--secondary))',
+                    foreground: 'hsl(var(--secondary-foreground))',
+                },
                 muted: {
                     DEFAULT: 'hsl(var(--muted))',
                     foreground: 'hsl(var(--muted-foreground))',
                 },
+                destructive: {
+                    DEFAULT: 'hsl(var(--destructive))',
+                    foreground: 'hsl(var(--destructive-foreground))',
+                },
                 border: 'hsl(var(--border))',
+                input: 'hsl(var(--input))',
+                ring: 'hsl(var(--ring))',
+            },
+            borderRadius: {
+                lg: 'var(--radius)',
+                md: 'calc(var(--radius) - 4px)',
+                sm: 'calc(var(--radius) - 6px)',
             },
             fontFamily: {
-                sans: ['Inter', 'system-ui', 'sans-serif'],
-                display: ['Outfit', 'system-ui', 'sans-serif'],
-                mono: ['JetBrains Mono', 'monospace'],
+                sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
+                display: ['var(--font-outfit)', 'var(--font-inter)', 'system-ui', 'sans-serif'],
+                mono: ['var(--font-jetbrains)', 'ui-monospace', 'monospace'],
             },
             boxShadow: {
-                'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
-                'glow': '0 0 20px rgba(99, 102, 241, 0.5)',
-                'card': '0 2px 8px -2px rgba(0, 0, 0, 0.05), 0 4px 16px -4px rgba(0, 0, 0, 0.02)',
+                'card': '0 1px 2px 0 rgb(16 24 40 / 0.04), 0 4px 16px -8px rgb(16 24 40 / 0.10)',
+                'elevated': '0 4px 24px -8px rgb(16 24 40 / 0.16), 0 2px 6px -2px rgb(16 24 40 / 0.08)',
+                'glow': '0 8px 28px -6px hsl(var(--primary) / 0.45)',
             },
             backgroundImage: {
                 'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-                'hero-glow': 'conic-gradient(from 180deg at 50% 50%, #2a8af6 0deg, #a853ba 180deg, #e92a67 360deg)',
+                'mesh': 'radial-gradient(at 0% 0%, hsl(var(--primary) / 0.10) 0px, transparent 50%), radial-gradient(at 100% 0%, hsl(var(--accent) / 0.10) 0px, transparent 50%)',
             },
             animation: {
                 'fade-in': 'fadeIn 0.5s ease-out',

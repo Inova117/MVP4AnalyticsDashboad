@@ -1,7 +1,17 @@
 // Mock Data Exports for MVP #4
-export { mockDashboards } from './dashboards'
-export { mockWidgets } from './widgets'
-export { mockMetrics } from './metrics'
-export { mockMetricData } from './metric-data'
-export { mockAlerts } from './alerts'
 export { mockDataClient } from './client'
+export {
+    SOURCES,
+    SOURCE_LIST,
+    DEFAULT_SOURCE,
+    getSourceDef,
+    type DataSourceType,
+    type SourceDef,
+} from './catalog'
+export {
+    getActiveDataSource,
+    setActiveDataSource,
+    getAllDataSources,
+    getDataSource,
+    DATA_SOURCE_CHANGED_EVENT,
+} from './data-source-registry'

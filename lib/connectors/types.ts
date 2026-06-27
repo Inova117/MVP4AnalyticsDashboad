@@ -38,7 +38,7 @@ export interface ConnectorConfig {
     refreshToken?: string
     accountId?: string
     propertyId?: string
-    customFields?: Record<string, any>
+    customFields?: Record<string, unknown>
 }
 
 export interface ConnectorMetadata {

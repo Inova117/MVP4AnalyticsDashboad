@@ -1,96 +1,126 @@
+// Alerts Page
 'use client'
 
-import { useState, useEffect } from 'react'
-import Link from 'next/link'
-import { PlusIcon, LayoutDashboardIcon, BellIcon } from 'lucide-react'
-import { AlertList } from '@/components/alerts/alert-list'
+import { useState, useEffect, useCallback } from 'react'
+import { PlusIcon } from 'lucide-react'
+import { AppHeader } from '@/components/app-header'
+import { AlertList, type AlertMeta } from '@/components/alerts/alert-list'
 import { CreateAlertModal } from '@/components/alerts/create-alert-modal'
-import { getDataClient } from '@/lib/supabase'
-import type { Alert } from '@/types'
+import { dataClient } from '@/lib/supabase'
+import { DATA_SOURCE_CHANGED_EVENT } from '@/lib/mock-data/data-source-registry'
+import { formatMetricValue } from '@/lib/format'
+import { subDays } from 'date-fns'
+import type { Alert, Metric } from '@/types'
+
+function evaluate(condition: Alert['condition'], value: number, threshold: number): boolean {
+    switch (condition) {
+        case 'gt':
+            return value > threshold
+        case 'lt':
+            return value < threshold
+        case 'eq':
+            return Math.abs(value - threshold) < 0.001
+        case 'pct_change':
+            return Math.abs(value) >= threshold
+        default:
+            return false
+    }
+}
 
 export default function AlertsPage() {
     const [alerts, setAlerts] = useState<Alert[]>([])
+    const [meta, setMeta] = useState<Record<string, AlertMeta>>({})
     const [loading, setLoading] = useState(true)
     const [showCreateModal, setShowCreateModal] = useState(false)
-    const dataClient = getDataClient()
 
-    useEffect(() => {
-        loadAlerts()
-    }, [])
-
-    async function loadAlerts() {
+    const loadAlerts = useCallback(async () => {
         try {
-            const data = await dataClient.getAlerts()
+            const [data, metrics] = await Promise.all([dataClient.getAlerts(), dataClient.getMetrics()])
+            const metricMap = new Map<string, Metric>(metrics.map((m) => [m.id, m]))
+
+            const end = new Date()
+            const start = subDays(end, 7)
+            const metaEntries: Record<string, AlertMeta> = {}
+
+            await Promise.all(
+                data.map(async (alert) => {
+                    const metric = metricMap.get(alert.metric_id)
+                    if (!metric) {
+                        metaEntries[alert.id] = { metricName: 'Unknown metric', valueLabel: '—', thresholdLabel: String(alert.threshold), triggered: false }
+                        return
+                    }
+                    const series = await dataClient.getMetricData(alert.metric_id, start, end)
+                    const latest = series.length ? series[series.length - 1].value : 0
+                    metaEntries[alert.id] = {
+                        metricName: metric.name,
+                        valueLabel: `${metric.prefix ?? ''}${formatMetricValue(latest, metric.unit, { decimals: metric.decimals })}${metric.suffix ?? ''}`,
+                        thresholdLabel: `${metric.prefix ?? ''}${formatMetricValue(alert.threshold, metric.unit, { decimals: metric.decimals })}${metric.suffix ?? ''}`,
+                        triggered: alert.is_active && evaluate(alert.condition, latest, alert.threshold),
+                    }
+                })
+            )
+
             setAlerts(data)
+            setMeta(metaEntries)
         } catch (error) {
             console.error('Failed to load alerts:', error)
         } finally {
             setLoading(false)
         }
-    }
+    }, [])
 
-    // Reuse header style from dashboard, but with different content
-    // TODO: Ideally extract header component
+    useEffect(() => {
+        loadAlerts()
+    }, [loadAlerts])
+
+    useEffect(() => {
+        const onSourceChange = () => {
+            setLoading(true)
+            loadAlerts()
+        }
+        window.addEventListener(DATA_SOURCE_CHANGED_EVENT, onSourceChange)
+        return () => window.removeEventListener(DATA_SOURCE_CHANGED_EVENT, onSourceChange)
+    }, [loadAlerts])
+
+    const activeCount = alerts.filter((a) => a.is_active).length
+    const triggeredCount = Object.values(meta).filter((m) => m.triggered).length
+
     return (
-        <div className="min-h-screen bg-background">
-            {/* Header */}
-            <div className="sticky top-0 z-20 border-b border-white/10 glass">
-                <div className="max-w-7xl mx-auto px-6 py-5">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h1 className="text-3xl font-display font-bold text-foreground tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
-                                Alerts
-                            </h1>
-                            <p className="text-sm text-muted-foreground mt-1.5 font-medium">
-                                Monitor metrics and get notified
-                            </p>
-                        </div>
+        <div className="min-h-screen bg-background bg-mesh">
+            <AppHeader />
 
-                        <div className="flex items-center gap-4">
-                            {/* Navigation Tabs */}
-                            <div className="flex bg-slate-100/50 dark:bg-slate-800/50 p-1 rounded-xl">
-                                <Link
-                                    href="/dashboard"
-                                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-white/50 dark:hover:bg-slate-700/50 transition-all"
-                                >
-                                    <LayoutDashboardIcon className="w-4 h-4" />
-                                    Dashboard
-                                </Link>
-                                <div className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-white dark:bg-slate-700 text-primary-600 shadow-sm">
-                                    <BellIcon className="w-4 h-4" />
-                                    Alerts
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={() => setShowCreateModal(true)}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-500 hover:shadow-glow transition-all duration-300 font-medium text-sm shadow-primary"
-                            >
-                                <PlusIcon className="w-4 h-4" />
-                                New Alert
-                            </button>
-                        </div>
+            <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
+                <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Alerts</h1>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            {loading
+                                ? 'Loading alert rules…'
+                                : `${activeCount} active · ${triggeredCount} currently triggered`}
+                        </p>
                     </div>
+                    <button onClick={() => setShowCreateModal(true)} className="btn-primary self-start sm:self-auto">
+                        <PlusIcon className="h-4 w-4" />
+                        New Alert
+                    </button>
                 </div>
-            </div>
 
-            {/* Content */}
-            <div className="max-w-7xl mx-auto px-6 py-8">
                 {loading ? (
-                    <div className="flex items-center justify-center py-20">
-                        <div className="w-10 h-10 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+                    <div className="grid gap-3">
+                        {[...Array(3)].map((_, i) => (
+                            <div key={i} className="h-[88px] rounded-2xl border border-border/70 bg-card p-5 shadow-card">
+                                <div className="skeleton h-5 w-1/3" />
+                                <div className="skeleton mt-3 h-4 w-1/2" />
+                            </div>
+                        ))}
                     </div>
                 ) : (
-                    <AlertList alerts={alerts} onUpdate={loadAlerts} />
+                    <AlertList alerts={alerts} meta={meta} onUpdate={loadAlerts} />
                 )}
-            </div>
+            </main>
 
-            {/* Mobile / Modals */}
             {showCreateModal && (
-                <CreateAlertModal
-                    onClose={() => setShowCreateModal(false)}
-                    onSuccess={loadAlerts}
-                />
+                <CreateAlertModal onClose={() => setShowCreateModal(false)} onSuccess={loadAlerts} />
             )}
         </div>
     )

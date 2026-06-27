@@ -1,118 +1,108 @@
-// Pie Chart Widget - Proportional data visualization
+// Pie / Donut Widget — real categorical breakdown (traffic by source, revenue
+// by category, etc.) driven by a dimension. Donut shows the total in the hole.
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { dataClient } from '@/lib/supabase'
-import { useDateRange } from '@/lib/contexts/date-range-context'
 import type { Widget } from '@/types'
-import {
-    PieChart,
-    Pie,
-    Cell,
-    Tooltip,
-    ResponsiveContainer,
-    Legend,
-} from 'recharts'
+import { PieChart, Pie, Cell, Tooltip } from 'recharts'
+import { useDimension, ChartSkeleton, ChartEmpty, Measured } from './chart-kit'
+import { CHART_PALETTE } from '@/lib/theme'
+import { formatMetricValue, type MetricUnit } from '@/lib/format'
 
-interface PieChartWidgetProps {
-    widget: Widget
+interface SliceDatum {
+    name: string
+    value: number
+    pct: number
+    color: string
 }
 
-const COLORS = ['#0ea5e9', '#d946ef', '#10b981', '#f59e0b', '#ef4444']
-
-export function PieChartWidget({ widget }: PieChartWidgetProps) {
-    const { startDate, endDate } = useDateRange()
-    const [data, setData] = useState<Array<{ name: string; value: number }>>([])
-    const [loading, setLoading] = useState(true)
-
-    const loadData = useCallback(async () => {
-        try {
-            setLoading(true)
-
-            const metricData = await dataClient.getMetricData(
-                widget.metric_id,
-                startDate,
-                endDate
-            )
-
-            // Group data by week for pie chart
-            const weeklyData: Record<string, number> = {}
-            metricData.forEach((d) => {
-                const week = `Week ${Math.ceil(new Date(d.timestamp).getDate() / 7)}`
-                weeklyData[week] = (weeklyData[week] || 0) + d.value
-            })
-
-            const formatted = Object.entries(weeklyData).map(([name, value]) => ({
-                name,
-                value: Math.round(value),
-            }))
-
-            setData(formatted)
-        } catch (error) {
-            console.error('Error loading chart data:', error)
-            setData([])
-        } finally {
-            setLoading(false)
-        }
-    }, [widget.metric_id, startDate, endDate])
-
-    useEffect(() => {
-        loadData()
-    }, [loadData])
-
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-64">
-                <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+function PieTooltip({
+    active,
+    payload,
+    unit,
+}: {
+    active?: boolean
+    payload?: Array<{ payload: SliceDatum }>
+    unit: MetricUnit
+}) {
+    if (!active || !payload || !payload.length) return null
+    const d = payload[0].payload
+    return (
+        <div className="rounded-xl border border-border bg-popover/95 px-3 py-2 shadow-elevated backdrop-blur-sm">
+            <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+                <span className="text-xs font-medium text-muted-foreground">{d.name}</span>
             </div>
-        )
-    }
+            <p className="mt-0.5 text-sm font-semibold text-foreground tabular-nums">
+                {formatMetricValue(d.value, unit)} <span className="font-normal text-muted-foreground">· {d.pct}%</span>
+            </p>
+        </div>
+    )
+}
 
-    if (data.length === 0) {
-        return (
-            <div className="flex items-center justify-center h-64 text-muted-foreground">
-                No data available for this period
-            </div>
-        )
-    }
+export function PieChartWidget({ widget }: { widget: Widget }) {
+    const { dimension, loading } = useDimension(widget.dimension_id)
+    const isDonut = widget.type === 'donut'
+
+    if (loading) return <ChartSkeleton />
+    if (!dimension || dimension.slices.length === 0) return <ChartEmpty />
+
+    const total = dimension.slices.reduce((s, x) => s + x.value, 0)
+    const data: SliceDatum[] = dimension.slices.map((s, i) => ({
+        name: s.name,
+        value: s.value,
+        pct: total ? Math.round((s.value / total) * 100) : 0,
+        color: CHART_PALETTE[i % CHART_PALETTE.length],
+    }))
+    const showLegend = widget.config.showLegend !== false
 
     return (
-        <ResponsiveContainer width="100%" height="100%" minHeight={200}>
-            <PieChart>
-                <Pie
-                    data={data}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={2}
-                    dataKey="value"
-                    stroke="none"
-                >
-                    {data.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} className="hover:opacity-80 transition-opacity" />
-                    ))}
-                </Pie>
-                <Tooltip
-                    contentStyle={{
-                        backgroundColor: 'var(--card)',
-                        border: '1px solid var(--border)',
-                        borderRadius: '0.75rem',
-                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
-                        fontSize: '12px',
-                    }}
-                    itemStyle={{ color: 'var(--foreground)' }}
-                />
-                {widget.config.showLegend && (
-                    <Legend
-                        verticalAlign="bottom"
-                        height={36}
-                        iconType="circle"
-                        iconSize={8}
-                        wrapperStyle={{ fontSize: '11px', color: 'var(--muted-foreground)' }}
-                    />
+        <div className="flex h-full flex-col">
+            <div className="relative min-h-0 flex-1">
+                <Measured>
+                    {({ width, height }) => (
+                        <PieChart width={width} height={height}>
+                            <Pie
+                                data={data}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={isDonut ? '62%' : 0}
+                                outerRadius="88%"
+                                paddingAngle={isDonut ? 2 : 0}
+                                dataKey="value"
+                                stroke="hsl(var(--card))"
+                                strokeWidth={2}
+                                isAnimationActive={false}
+                            >
+                                {data.map((entry) => (
+                                    <Cell key={entry.name} fill={entry.color} />
+                                ))}
+                            </Pie>
+                            <Tooltip content={<PieTooltip unit={dimension.unit} />} />
+                        </PieChart>
+                    )}
+                </Measured>
+
+                {isDonut && (
+                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-lg font-bold text-foreground tabular-nums">
+                            {formatMetricValue(total, dimension.unit, { compact: true })}
+                        </span>
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Total</span>
+                    </div>
                 )}
-            </PieChart>
-        </ResponsiveContainer>
+            </div>
+
+            {showLegend && (
+                <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5">
+                    {data.map((d) => (
+                        <div key={d.name} className="flex items-center gap-2 text-xs">
+                            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: d.color }} />
+                            <span className="truncate text-muted-foreground">{d.name}</span>
+                            <span className="ml-auto font-medium text-foreground tabular-nums">{d.pct}%</span>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
     )
 }

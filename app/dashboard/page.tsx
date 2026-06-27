@@ -1,18 +1,18 @@
 // Main Dashboard Page
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { dataClient } from '@/lib/supabase'
 import { DateRangeProvider } from '@/lib/contexts/date-range-context'
+import { DATA_SOURCE_CHANGED_EVENT } from '@/lib/mock-data/data-source-registry'
+import { AppHeader } from '@/components/app-header'
 import { WidgetGrid } from '@/components/widgets/widget-grid'
 import { DateRangeSelector } from '@/components/date-range-selector'
 import { AddWidgetModal } from '@/components/widgets/add-widget-modal'
 import { ExportPdfModal } from '@/components/export-pdf-modal'
-import type { Dashboard, Widget } from '@/types'
-import { PlusIcon, FileDownIcon, LayoutDashboardIcon, BellIcon, SparklesIcon } from 'lucide-react'
-import Link from 'next/link'
-import { DataSourceSelector } from '@/components/data-source-selector'
 import { AIInsightsPanel } from '@/components/ai-insights-panel'
+import type { Dashboard, Widget } from '@/types'
+import { PlusIcon, FileDownIcon, SparklesIcon, LayoutGridIcon } from 'lucide-react'
 
 export default function DashboardPage() {
     const [dashboard, setDashboard] = useState<Dashboard | null>(null)
@@ -22,157 +22,105 @@ export default function DashboardPage() {
     const [showExportModal, setShowExportModal] = useState(false)
     const [showAIInsights, setShowAIInsights] = useState(false)
 
-    useEffect(() => {
-        loadDashboard()
-    }, [])
-
-    async function loadDashboard() {
+    const loadDashboard = useCallback(async () => {
         try {
-            // Get user's default dashboard
             const dashboards = await dataClient.getDashboards()
-            const defaultDashboard = dashboards.find((d) => d.is_default) || dashboards[0]
-
-            if (defaultDashboard) {
-                setDashboard(defaultDashboard)
-                const dashboardWidgets = await dataClient.getWidgets(defaultDashboard.id)
-                setWidgets(dashboardWidgets)
+            const def = dashboards.find((d) => d.is_default) || dashboards[0]
+            if (def) {
+                setDashboard(def)
+                setWidgets(await dataClient.getWidgets(def.id))
             }
         } catch (error) {
             console.error('Error loading dashboard:', error)
         } finally {
             setLoading(false)
         }
-    }
+    }, [])
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-muted-foreground">Loading dashboard...</p>
-                </div>
-            </div>
-        )
-    }
+    useEffect(() => {
+        loadDashboard()
+    }, [loadDashboard])
 
-    if (!dashboard) {
-        return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="text-center">
-                    <h2 className="text-2xl font-bold mb-2">No Dashboard Found</h2>
-                    <p className="text-muted-foreground mb-4">Create your first dashboard to get started</p>
-                    <button className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600">
-                        Create Dashboard
-                    </button>
-                </div>
-            </div>
-        )
-    }
+    // Switching the data source rebuilds the whole dashboard in place.
+    useEffect(() => {
+        const onSourceChange = () => {
+            setLoading(true)
+            setWidgets([])
+            loadDashboard()
+        }
+        window.addEventListener(DATA_SOURCE_CHANGED_EVENT, onSourceChange)
+        return () => window.removeEventListener(DATA_SOURCE_CHANGED_EVENT, onSourceChange)
+    }, [loadDashboard])
+
+    // Keyboard shortcut for AI insights (⌘/Ctrl + I)
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'i') {
+                e.preventDefault()
+                setShowAIInsights((v) => !v)
+            }
+        }
+        window.addEventListener('keydown', onKey)
+        return () => window.removeEventListener('keydown', onKey)
+    }, [])
 
     return (
         <DateRangeProvider>
-            <div className="min-h-screen bg-background">
-                {/* Header */}
-                {/* Header with Glassmorphism */}
-                <div className="sticky top-0 z-20 border-b border-white/10 glass">
-                    <div className="max-w-7xl mx-auto px-6">
-                        {/* Top Row: Title & Data Source */}
-                        <div className="flex items-center justify-between py-5 border-b border-border/30">
-                            <div>
-                                <h1 className="text-3xl font-display font-bold text-foreground tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
-                                    {dashboard.name}
-                                </h1>
-                                <p className="text-sm text-muted-foreground mt-1.5 font-medium">
-                                    Analytics Overview & Real-time Insights
-                                </p>
-                            </div>
+            <div className="min-h-screen bg-background bg-mesh">
+                <AppHeader />
 
-                            <DataSourceSelector />
-                        </div>
-
-                        {/* Bottom Row: Navigation & Actions */}
-                        <div className="flex items-center justify-between py-4">
-
-                            {/* Left: Navigation Tabs */}
-                            <div className="flex bg-slate-100/50 dark:bg-slate-800/50 p-1 rounded-xl">
-                                <div className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-white dark:bg-slate-700 text-primary-600 shadow-sm">
-                                    <LayoutDashboardIcon className="w-4 h-4" />
-                                    Dashboard
-                                </div>
-                                <Link
-                                    href="/dashboard/alerts"
-                                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-white/50 dark:hover:bg-slate-700/50 transition-all"
-                                >
-                                    <BellIcon className="w-4 h-4" />
-                                    Alerts
-                                </Link>
-                            </div>
-
-                            <div className="bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-lg p-1 border border-border shadow-sm">
-                                <DateRangeSelector />
-                            </div>
-
-                            {/* Right: Actions */}
-                            <div className="flex items-center gap-3">
-                                <button
-                                    className="p-2.5 text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
-                                    onClick={() => setShowExportModal(true)}
-                                    title="Export PDF"
-                                >
-                                    <FileDownIcon className="w-5 h-5" />
-                                </button>
-
-                                <button
-                                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 font-medium text-sm ${showAIInsights
-                                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
-                                        : 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-950/50'
-                                        }`}
-                                    onClick={() => setShowAIInsights(!showAIInsights)}
-                                    title="AI Insights (⌘I)"
-                                >
-                                    <SparklesIcon className="w-4 h-4" />
-                                    AI Insights
-                                </button>
-
-                                <button
-                                    className="flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-500 hover:shadow-glow transition-all duration-300 font-medium text-sm shadow-primary"
-                                    onClick={() => setShowAddModal(true)}
-                                >
-                                    <PlusIcon className="w-4 h-4" />
-                                    Add Widget
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Main Content */}
-                <div className="max-w-7xl mx-auto px-6 py-8">
-                    {widgets.length === 0 ? (
-                        <div className="text-center py-16">
-                            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted mb-4">
-                                <PlusIcon className="w-8 h-8 text-muted-foreground" />
-                            </div>
-                            <h3 className="text-lg font-semibold mb-2">No widgets yet</h3>
-                            <p className="text-muted-foreground mb-4">
-                                Add your first widget to start visualizing your data
+                <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
+                    {/* Toolbar */}
+                    <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                            <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                                {dashboard?.name ?? 'Dashboard'}
+                            </h1>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                Real-time performance overview &amp; AI-powered insights
                             </p>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                            <DateRangeSelector />
                             <button
-                                className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
-                                onClick={() => setShowAddModal(true)}
+                                onClick={() => setShowExportModal(true)}
+                                className="btn-secondary"
+                                title="Export to PDF"
                             >
-                                Add Widget
+                                <FileDownIcon className="h-4 w-4" />
+                                <span className="hidden sm:inline">Export</span>
+                            </button>
+                            <button
+                                onClick={() => setShowAIInsights((v) => !v)}
+                                className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all focus-ring ${showAIInsights
+                                    ? 'bg-primary text-primary-foreground shadow-glow'
+                                    : 'bg-primary/10 text-primary hover:bg-primary/15'
+                                    }`}
+                                title="AI Insights (⌘I)"
+                            >
+                                <SparklesIcon className="h-4 w-4" />
+                                <span className="hidden sm:inline">AI Insights</span>
+                            </button>
+                            <button onClick={() => setShowAddModal(true)} className="btn-primary">
+                                <PlusIcon className="h-4 w-4" />
+                                <span className="hidden sm:inline">Add Widget</span>
                             </button>
                         </div>
-                    ) : (
-                        <WidgetGrid
-                            widgets={widgets}
-                            onUpdate={loadDashboard}
-                        />
-                    )}
-                </div>
+                    </div>
 
-                {/* Add Widget Modal */}
+                    {/* Content */}
+                    {loading ? (
+                        <DashboardSkeleton />
+                    ) : widgets.length === 0 ? (
+                        <EmptyState onAdd={() => setShowAddModal(true)} />
+                    ) : (
+                        dashboard && (
+                            <WidgetGrid dashboardId={dashboard.id} widgets={widgets} onUpdate={loadDashboard} />
+                        )
+                    )}
+                </main>
+
                 {showAddModal && dashboard && (
                     <AddWidgetModal
                         dashboardId={dashboard.id}
@@ -181,20 +129,54 @@ export default function DashboardPage() {
                     />
                 )}
 
-                {/* Export PDF Modal */}
                 {showExportModal && dashboard && (
-                    <ExportPdfModal
-                        dashboardName={dashboard.name}
-                        onClose={() => setShowExportModal(false)}
-                    />
+                    <ExportPdfModal dashboardName={dashboard.name} onClose={() => setShowExportModal(false)} />
                 )}
 
-                {/* AI Insights Panel */}
-                <AIInsightsPanel
-                    isOpen={showAIInsights}
-                    onClose={() => setShowAIInsights(false)}
-                />
+                <AIInsightsPanel isOpen={showAIInsights} onClose={() => setShowAIInsights(false)} />
             </div>
-        </DateRangeProvider >
+        </DateRangeProvider>
+    )
+}
+
+function DashboardSkeleton() {
+    return (
+        <div className="grid grid-cols-12 gap-4">
+            {[...Array(4)].map((_, i) => (
+                <div key={`k-${i}`} className="col-span-12 sm:col-span-6 lg:col-span-3">
+                    <div className="h-[160px] rounded-2xl border border-border/70 bg-card p-5 shadow-card">
+                        <div className="skeleton h-9 w-2/3" />
+                        <div className="skeleton mt-3 h-5 w-1/3" />
+                        <div className="skeleton mt-4 h-8 w-full" />
+                    </div>
+                </div>
+            ))}
+            {['lg:col-span-8', 'lg:col-span-4', 'lg:col-span-6', 'lg:col-span-6'].map((span, i) => (
+                <div key={`c-${i}`} className={`col-span-12 ${span}`}>
+                    <div className="h-[320px] rounded-2xl border border-border/70 bg-card p-5 shadow-card">
+                        <div className="skeleton h-4 w-1/4" />
+                        <div className="skeleton mt-4 h-[240px] w-full" />
+                    </div>
+                </div>
+            ))}
+        </div>
+    )
+}
+
+function EmptyState({ onAdd }: { onAdd: () => void }) {
+    return (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 py-20 text-center">
+            <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <LayoutGridIcon className="h-7 w-7" />
+            </span>
+            <h3 className="mt-4 text-lg font-semibold text-foreground">No widgets yet</h3>
+            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                Add your first widget to start visualizing this workspace&apos;s data.
+            </p>
+            <button onClick={onAdd} className="btn-primary mt-5">
+                <PlusIcon className="h-4 w-4" />
+                Add Widget
+            </button>
+        </div>
     )
 }

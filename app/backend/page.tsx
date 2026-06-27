@@ -89,21 +89,19 @@ export default function BackendPage() {
                     </section>
 
                     {/* Footer CTA */}
-                    <section className="mt-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-12 text-center text-white">
-                        <h2 className="text-3xl font-bold mb-4">
-                            Ready to Build Your Custom Solution?
-                        </h2>
-                        <p className="text-blue-100 text-lg mb-8 max-w-2xl mx-auto">
-                            This is just one of 6 production-ready MVPs we&apos;ve built.
-                            Each one showcases enterprise-grade architecture and best practices.
+                    <section className="mt-16 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 p-12 text-center text-white">
+                        <h2 className="mb-4 text-3xl font-bold">Built for production from day one</h2>
+                        <p className="mx-auto mb-8 max-w-2xl text-lg text-indigo-100">
+                            Type-safe data layer, modular widgets, and a connector architecture ready to swap
+                            mock data for live integrations — without touching the UI.
                         </p>
-                        <div className="flex gap-4 justify-center">
-                            <button className="px-8 py-3 bg-white text-blue-600 font-semibold rounded-lg hover:bg-blue-50 transition">
-                                Schedule Demo
-                            </button>
-                            <button className="px-8 py-3 bg-blue-700 text-white font-semibold rounded-lg hover:bg-blue-800 transition">
-                                View Other MVPs
-                            </button>
+                        <div className="flex justify-center">
+                            <Link
+                                href="/dashboard"
+                                className="rounded-lg bg-white px-8 py-3 font-semibold text-indigo-600 transition hover:bg-indigo-50"
+                            >
+                                Back to Dashboard
+                            </Link>
                         </div>
                     </section>
                 </div>

@@ -1,111 +1,62 @@
-// Bar Chart Widget - Categorical data visualization
+// Bar Chart Widget — time-series, auto-bucketed into weeks when the range is
+// long so bars stay readable instead of becoming 30 thin slivers.
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { dataClient } from '@/lib/supabase'
-import { useDateRange } from '@/lib/contexts/date-range-context'
+import { useMemo } from 'react'
 import type { Widget } from '@/types'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import {
-    BarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    ResponsiveContainer,
-} from 'recharts'
-import { format } from 'date-fns'
+    useMetricSeries,
+    ChartTooltip,
+    ChartSkeleton,
+    ChartEmpty,
+    Measured,
+    axisTick,
+    tickFormatter,
+    type SeriesPoint,
+} from './chart-kit'
+import { CHART_PALETTE } from '@/lib/theme'
 
-interface BarChartWidgetProps {
-    widget: Widget
+// Bucket into 7-day groups anchored to the END so the most recent week is
+// always complete (any partial week lands on the older left edge).
+function bucketWeekly(data: SeriesPoint[]): SeriesPoint[] {
+    if (data.length <= 16) return data
+    const buckets: SeriesPoint[] = []
+    for (let end = data.length; end > 0; end -= 7) {
+        const start = Math.max(0, end - 7)
+        const chunk = data.slice(start, end)
+        buckets.unshift({
+            date: chunk[0].date,
+            value: chunk.reduce((s, d) => s + d.value, 0),
+        })
+    }
+    return buckets
 }
 
-export function BarChartWidget({ widget }: BarChartWidgetProps) {
-    const { startDate, endDate } = useDateRange()
-    const [data, setData] = useState<Array<{ date: string; value: number }>>([])
-    const [loading, setLoading] = useState(true)
+export function BarChartWidget({ widget }: { widget: Widget }) {
+    const { metric, data, loading } = useMetricSeries(widget)
+    const color = widget.config.color || CHART_PALETTE[1]
+    const unit = metric?.unit ?? 'number'
 
-    const loadData = useCallback(async () => {
-        try {
-            setLoading(true)
+    const bars = useMemo(() => bucketWeekly(data), [data])
 
-            const metricData = await dataClient.getMetricData(
-                widget.metric_id,
-                startDate,
-                endDate
-            )
-
-            const formatted = metricData.map((d) => ({
-                date: format(new Date(d.timestamp), 'MMM dd'),
-                value: d.value,
-            }))
-
-            setData(formatted)
-        } catch (error) {
-            console.error('Error loading chart data:', error)
-            setData([])
-        } finally {
-            setLoading(false)
-        }
-    }, [widget.metric_id, startDate, endDate])
-
-    useEffect(() => {
-        loadData()
-    }, [loadData])
-
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-64">
-                <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
-            </div>
-        )
-    }
-
-    if (data.length === 0) {
-        return (
-            <div className="flex items-center justify-center h-64 text-muted-foreground">
-                No data available for this period
-            </div>
-        )
-    }
+    if (loading) return <ChartSkeleton />
+    if (data.length === 0) return <ChartEmpty />
 
     return (
-        <ResponsiveContainer width="100%" height="100%" minHeight={200}>
-            <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-border/40" horizontal={true} vertical={false} />
-                <XAxis
-                    dataKey="date"
-                    tick={{ fontSize: 11, fill: 'currentColor' }}
-                    tickLine={false}
-                    axisLine={false}
-                    className="text-muted-foreground"
-                    dy={10}
-                />
-                <YAxis
-                    tick={{ fontSize: 11, fill: 'currentColor' }}
-                    tickLine={false}
-                    axisLine={false}
-                    className="text-muted-foreground"
-                />
-                <Tooltip
-                    contentStyle={{
-                        backgroundColor: 'var(--card)',
-                        border: '1px solid var(--border)',
-                        borderRadius: '0.75rem',
-                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
-                        fontSize: '12px',
-                    }}
-                    cursor={{ fill: 'var(--muted)', opacity: 0.2 }}
-                    itemStyle={{ color: 'var(--foreground)' }}
-                />
-                <Bar
-                    dataKey="value"
-                    fill={widget.config.color || '#d946ef'}
-                    radius={[6, 6, 0, 0]}
-                    maxBarSize={50}
-                    className="opacity-90 hover:opacity-100 transition-opacity"
-                />
-            </BarChart>
-        </ResponsiveContainer>
+        <Measured>
+            {({ width, height }) => (
+                <BarChart width={width} height={height} data={bars} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="4 4" stroke="hsl(var(--border))" strokeOpacity={0.6} vertical={false} />
+                    <XAxis dataKey="date" tick={axisTick} tickLine={false} axisLine={false} dy={8} minTickGap={12} />
+                    <YAxis tick={axisTick} tickLine={false} axisLine={false} tickFormatter={tickFormatter(unit)} width={56} />
+                    <Tooltip
+                        content={<ChartTooltip unit={unit} decimals={metric?.decimals} valueLabel={metric?.name} />}
+                        cursor={{ fill: 'hsl(var(--muted))', opacity: 0.4 }}
+                    />
+                    <Bar dataKey="value" fill={color} radius={[6, 6, 0, 0]} maxBarSize={44} isAnimationActive={false} />
+                </BarChart>
+            )}
+        </Measured>
     )
 }
